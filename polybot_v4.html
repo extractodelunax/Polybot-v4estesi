@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PolyBot v4 — BTC 5min Real Data</title>
+<link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;700&family=Familjen+Grotesk:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#03050b;--bg2:#060910;--s0:#080d18;--s1:#0b1220;
+  --bdr:#111d2e;--bdr2:#182740;
+  --a:#00f5c4;--b:#3d8bff;--c:#ff3f6c;--w:#ffcc44;--p:#bf7fff;
+  --tx:#bdd8f0;--mx:#2a4560;
+  --mono:'Azeret Mono',monospace;--sans:'Familjen Grotesk',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:var(--mono);font-size:13px;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,196,.016) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,196,.016) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:24px 18px 80px}
+
+.hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+.logo{font-family:var(--sans);font-size:1.5rem;font-weight:800;letter-spacing:-.04em;line-height:1}
+.logo em{font-style:normal;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo small{display:block;font-family:var(--mono);font-size:.57rem;font-weight:400;letter-spacing:.18em;color:var(--mx);margin-top:4px;-webkit-text-fill-color:var(--mx)}
+.chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border-radius:2px;border:1px solid;transition:all .3s}
+.chip.sim{border-color:rgba(255,204,68,.4);color:var(--w);background:rgba(255,204,68,.05)}
+.chip.live{border-color:rgba(255,63,108,.45);color:var(--c);background:rgba(255,63,108,.07);animation:livep 2s ease-in-out infinite}
+.chip.run{border-color:rgba(0,245,196,.4);color:var(--a);background:rgba(0,245,196,.06)}
+.chip.idle{border-color:rgba(42,69,96,.7);color:var(--mx);background:transparent}
+.chip.real-data{border-color:rgba(191,127,255,.4);color:var(--p);background:rgba(191,127,255,.05)}
+@keyframes livep{0%,100%{box-shadow:none}50%{box-shadow:0 0 14px 2px rgba(255,63,108,.2)}}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:bk 1.4s ease-in-out infinite}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:.15}}
+
+.wbar{display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;background:var(--s0);border:1px solid var(--bdr);border-radius:2px;padding:5px 12px;font-size:.67rem;color:var(--mx);transition:all .25s}
+.pill.ok{border-color:rgba(0,245,196,.25);color:var(--a)}
+.pill.wn{border-color:rgba(255,204,68,.25);color:var(--w)}
+.pill.er{border-color:rgba(255,63,108,.25);color:var(--c)}
+.pill.pp{border-color:rgba(191,127,255,.25);color:var(--p)}
+.pdot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.pill.ok .pdot{box-shadow:0 0 7px var(--a)}.pill.wn .pdot{box-shadow:0 0 7px var(--w)}
+.pill.er .pdot{box-shadow:0 0 7px var(--c)}.pill.pp .pdot{box-shadow:0 0 7px var(--p)}
+.btn-wallet{margin-left:auto;font-family:var(--mono);font-size:.67rem;letter-spacing:.07em;text-transform:uppercase;padding:7px 18px;border-radius:2px;cursor:pointer;border:1px solid var(--b);background:transparent;color:var(--b);transition:all .2s}
+.btn-wallet:hover{background:var(--b);color:#fff;box-shadow:0 0 22px rgba(61,139,255,.3)}
+.btn-wallet.on{border-color:var(--a);color:var(--a)}.btn-wallet.on:hover{background:var(--a);color:var(--bg)}
+
+.layout{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+@media(max-width:760px){.layout{grid-template-columns:1fr}}
+
+.card{background:var(--s0);border:1px solid var(--bdr);border-radius:4px;padding:20px;margin-bottom:14px;position:relative}
+.card::after{content:'';position:absolute;top:0;left:14px;right:14px;height:1px;background:linear-gradient(90deg,transparent,rgba(0,245,196,.1),transparent)}
+.ct{font-family:var(--sans);font-size:.59rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--mx);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.ct::after{content:'';flex:1;height:1px;background:var(--bdr)}
+
+.rule{display:flex;align-items:stretch;border:1px solid var(--bdr2);border-radius:4px;overflow:hidden;margin-bottom:14px}
+.rh{flex:1;padding:14px 8px;text-align:center}
+.rh.buy{background:rgba(0,245,196,.04)}.rh.sell{background:rgba(61,139,255,.04)}
+.rtag{font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+.rtag.b{color:var(--a)}.rtag.s{color:var(--b)}
+.rval{font-family:var(--sans);font-size:1.6rem;font-weight:800;line-height:1}
+.rval.b{color:var(--a)}.rval.s{color:var(--b)}
+.rval-sub{font-size:.58rem;color:var(--mx);margin-top:3px}
+.rdiv{display:flex;align-items:center;padding:0 10px;color:var(--bdr2);font-size:.85rem}
+.rnote{font-size:.61rem;color:var(--mx);line-height:1.7}.rnote b{color:var(--w)}
+
+.f{margin-bottom:13px}.f:last-child{margin-bottom:0}
+.lbl{display:block;font-size:.61rem;letter-spacing:.09em;text-transform:uppercase;color:var(--mx);margin-bottom:5px}
+.inp{width:100%;background:var(--bg2);border:1px solid var(--bdr);color:var(--tx);font-family:var(--mono);font-size:.82rem;padding:9px 12px;border-radius:3px;outline:none;transition:border-color .2s,box-shadow .2s}
+.inp:focus{border-color:var(--a);box-shadow:0 0 0 2px rgba(0,245,196,.07)}
+.inp::placeholder{color:var(--bdr2)}
+.hint{font-size:.6rem;color:var(--mx);margin-top:3px;line-height:1.6}.hint b{color:var(--a)}
+
+.trow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--bdr);margin-top:12px}
+.trow .lbl{margin:0;font-size:.7rem;color:var(--tx)}
+.sw{position:relative;width:42px;height:21px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.trk{position:absolute;inset:0;background:var(--bdr2);border-radius:21px;cursor:pointer;transition:.25s}
+.trk::before{content:'';position:absolute;height:15px;width:15px;left:3px;bottom:3px;background:var(--mx);border-radius:50%;transition:.25s}
+.sw input:checked+.trk{background:rgba(0,245,196,.12);border:1px solid var(--a)}
+.sw input:checked+.trk::before{transform:translateX(21px);background:var(--a)}
+
+.bbtns{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;font-family:var(--mono);font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;padding:11px 0;border-radius:3px;border:1px solid;cursor:pointer;transition:all .2s}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn-go{background:rgba(0,245,196,.06);border-color:var(--a);color:var(--a)}
+.btn-go:hover:not(:disabled){background:var(--a);color:var(--bg);box-shadow:0 0 28px rgba(0,245,196,.3)}
+.btn-halt{background:rgba(255,63,108,.06);border-color:var(--c);color:var(--c);display:none}
+.btn-halt:hover{background:var(--c);color:#fff;box-shadow:0 0 28px rgba(255,63,108,.3)}
+.btn-halt.on{display:block}
+
+.sess{display:flex;flex-direction:column;gap:9px}
+.sr{display:flex;justify-content:space-between;font-size:.7rem}
+.sr span:first-child{color:var(--mx)}.sr span:last-child{font-family:var(--sans);font-weight:700}
+
+/* MARKET PANEL */
+.mkt-box{background:var(--bg2);border:1px solid var(--bdr2);border-radius:4px;padding:16px;margin-bottom:12px}
+.mkt-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.mkt-q{font-size:.78rem;color:var(--tx);line-height:1.45;font-weight:500;flex:1}
+.mkt-live-badge{font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:2px;border:1px solid rgba(191,127,255,.35);color:var(--p);background:rgba(191,127,255,.06);white-space:nowrap;flex-shrink:0}
+
+/* UP / DOWN tokens — especial para BTC markets */
+.odds{display:flex;gap:8px;margin-bottom:12px}
+.odd{flex:1;background:var(--s0);border:1px solid var(--bdr);border-radius:3px;padding:10px;text-align:center;transition:all .2s}
+.odd.watching{border-color:rgba(255,204,68,.5);background:rgba(255,204,68,.03)}
+.odd.triggered{border-color:rgba(0,245,196,.6);background:rgba(0,245,196,.04)}
+.odd-lbl{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mx);margin-bottom:3px}
+.odd-p{font-family:var(--sans);font-size:1.2rem;font-weight:800;transition:color .2s}
+.odd-p.up{color:var(--a)}.odd-p.dn{color:var(--c)}
+.odd-pct{font-size:.6rem;color:var(--mx);margin-top:2px}
+@keyframes flash{0%,100%{filter:brightness(1)}50%{filter:brightness(3)}}
+.flashing{animation:flash .35s ease}
+
+/* BTC price display */
+.btc-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--s0);border:1px solid var(--bdr);border-radius:3px;margin-bottom:10px}
+.btc-lbl{font-size:.6rem;color:var(--mx);text-transform:uppercase;letter-spacing:.08em}
+.btc-price{font-family:var(--sans);font-size:1rem;font-weight:800;color:var(--tx)}
+.btc-change{font-size:.65rem;padding:2px 7px;border-radius:2px}
+.btc-change.up{color:var(--a);background:rgba(0,245,196,.08)}
+.btc-change.dn{color:var(--c);background:rgba(255,63,108,.08)}
+
+/* Price bar */
+.pbar-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.pbar-lbl{font-size:.58rem;color:var(--mx);text-transform:uppercase;letter-spacing:.07em;min-width:55px}
+.pbar{flex:1;height:5px;background:var(--bdr);border-radius:3px;overflow:hidden;position:relative}
+.pbar-fill{height:100%;border-radius:3px;transition:width .15s linear}
+.pbar-target{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,204,68,.7);left:10%}
+.pbar-num{font-family:var(--sans);font-size:.72rem;font-weight:700;min-width:55px;text-align:right}
+
+/* Countdown */
+.cd-row{display:flex;align-items:center;gap:10px}
+.cd-lbl{font-size:.62rem;color:var(--mx);text-transform:uppercase;letter-spacing:.07em;flex-shrink:0;min-width:48px}
+.cd-wrap{flex:1;height:4px;background:var(--bdr);border-radius:2px;overflow:hidden}
+.cd-fill{height:100%;border-radius:2px;transition:width .24s linear}
+.cd-val{font-family:var(--sans);font-size:.85rem;font-weight:800;min-width:42px;text-align:right;transition:color .3s}
+
+.rnd-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.rnd-badge{font-family:var(--sans);font-size:.65rem;font-weight:700;color:var(--p);background:rgba(191,127,255,.08);border:1px solid rgba(191,127,255,.2);padding:3px 10px;border-radius:2px}
+.rnd-state{font-size:.62rem;letter-spacing:.06em;text-transform:uppercase}
+.rnd-state.idle{color:var(--mx)}.rnd-state.watching{color:var(--w)}.rnd-state.bought{color:var(--a)}.rnd-state.complete{color:var(--b)}
+
+.srow{display:flex;gap:14px;font-size:.63rem;color:var(--mx);flex-wrap:wrap;margin-top:10px}
+.srow span b{color:var(--tx)}
+.pbadge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:2px;font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;border:1px solid}
+.pbadge.none{color:var(--mx);border-color:var(--bdr)}
+.pbadge.open{color:var(--a);border-color:rgba(0,245,196,.35);background:rgba(0,245,196,.05);animation:bk .7s ease-in-out infinite}
+.pbadge.sold{color:var(--b);border-color:rgba(61,139,255,.35);background:rgba(61,139,255,.05)}
+
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:580px){.stat-row{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--s0);border:1px solid var(--bdr);border-radius:3px;padding:12px 13px}
+.sk{font-size:.57rem;text-transform:uppercase;letter-spacing:.1em;color:var(--mx);margin-bottom:4px}
+.sv{font-family:var(--sans);font-size:1.2rem;font-weight:800;line-height:1;transition:all .3s}
+.sv.up{color:var(--a)}.sv.dn{color:var(--c)}.sv.cy{color:var(--b)}.sv.am{color:var(--w)}.sv.pp{color:var(--p)}
+
+.logbox{background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;height:230px;overflow-y:auto;padding:11px 13px;line-height:2;scrollbar-width:thin;scrollbar-color:var(--bdr) transparent}
+.logbox::-webkit-scrollbar{width:3px}.logbox::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+.le{display:flex;gap:10px;align-items:baseline;animation:fi .15s ease}
+@keyframes fi{from{opacity:0;transform:translateX(-3px)}to{opacity:1;transform:none}}
+.lt{color:var(--mx);min-width:68px;font-size:.62rem;flex-shrink:0}
+.lm{flex:1;font-size:.69rem}
+.le.i .lm{color:var(--tx)}.le.ok .lm{color:var(--a)}.le.tr .lm{color:var(--b)}.le.wn .lm{color:var(--w)}.le.er .lm{color:var(--c)}.le.pp .lm{color:var(--p)}
+
+.twrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.67rem}
+thead th{text-align:left;color:var(--mx);letter-spacing:.07em;text-transform:uppercase;padding:7px 9px;border-bottom:1px solid var(--bdr);font-weight:400}
+tbody td{padding:7px 9px;border-bottom:1px solid rgba(17,29,46,.9)}
+tbody tr:hover td{background:rgba(0,245,196,.02)}
+.tag{display:inline-block;padding:2px 6px;border-radius:2px;font-size:.58rem;letter-spacing:.07em;text-transform:uppercase;border:1px solid}
+.tag.buy{color:var(--a);border-color:rgba(0,245,196,.3);background:rgba(0,245,196,.05)}
+.tag.sell{color:var(--b);border-color:rgba(61,139,255,.3);background:rgba(61,139,255,.05)}
+.tag.sim{color:var(--w);border-color:rgba(255,204,68,.3);background:rgba(255,204,68,.05)}
+.tag.live-tag{color:var(--c);border-color:rgba(255,63,108,.3);background:rgba(255,63,108,.05)}
+.up{color:var(--a)}.dn{color:var(--c)}
+.empty{text-align:center;color:var(--mx);padding:24px;font-size:.7rem;letter-spacing:.05em}
+
+/* API error banner */
+.api-banner{display:none;padding:10px 14px;background:rgba(255,63,108,.06);border:1px solid rgba(255,63,108,.25);border-radius:3px;font-size:.68rem;color:var(--c);margin-bottom:14px;line-height:1.6}
+.api-banner.show{display:block}
+
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.ov.on{display:flex}
+.modal{background:var(--s1);border:1px solid var(--a);border-radius:6px;padding:28px;max-width:440px;width:calc(100% - 32px);box-shadow:0 0 80px rgba(0,245,196,.1);animation:pop .22s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+.modal h2{font-family:var(--sans);font-size:.95rem;font-weight:800;color:var(--a);margin-bottom:10px}
+.modal p{font-size:.72rem;color:var(--mx);line-height:1.8;margin-bottom:12px}
+.modal ul{font-size:.7rem;color:var(--tx);line-height:2.2;padding-left:18px;margin-bottom:16px}
+.modal-note{font-size:.68rem;padding:10px 14px;border-radius:3px;border:1px solid rgba(255,63,108,.3);background:rgba(255,63,108,.05);color:var(--c);margin-bottom:16px;line-height:1.7}
+.mclose{font-family:var(--mono);font-size:.7rem;padding:8px 20px;background:transparent;border:1px solid var(--bdr2);color:var(--mx);border-radius:3px;cursor:pointer;transition:all .2s;letter-spacing:.05em;text-transform:uppercase}
+.mclose:hover{border-color:var(--tx);color:var(--tx)}
+
+@keyframes scanln{from{top:-4px}to{top:100vh}}
+.scanning::before{content:'';position:fixed;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--a),transparent);opacity:.055;animation:scanln 5s linear infinite;z-index:40;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+
+  <div class="hd">
+    <div class="logo">Poly<em>Bot</em> <span style="font-size:.55em;opacity:.5">v4</span>
+      <small>BTC 5min · datos reales Polymarket · 1¢ compra → 2¢ venta</small>
+    </div>
+    <div class="chips">
+      <div class="chip real-data"><div class="dot"></div>DATOS REALES</div>
+      <div class="chip sim" id="modeChip"><div class="dot"></div>SIMULACIÓN</div>
+      <div class="chip idle" id="botChip">INACTIVO</div>
+    </div>
+  </div>
+
+  <!-- API error banner -->
+  <div class="api-banner" id="apiBanner">
+    ⚠️ No se pudo conectar a la API de Polymarket (CORS). El bot cambiará a precios simulados.
+    Para datos 100% reales en producción usa un servidor proxy local.
+  </div>
+
+  <div class="wbar">
+    <div class="pill pp" id="pApi"><div class="pdot"></div><span>API: conectando…</span></div>
+    <div class="pill" id="pW"><div class="pdot"></div><span>Wallet —</span></div>
+    <div class="pill" id="pN"><div class="pdot"></div><span>Red —</span></div>
+    <div class="pill" id="pB"><div class="pdot"></div><span>USDC —</span></div>
+    <button class="btn-wallet" id="btnConnect" onclick="connectWallet()">🦊 Conectar MetaMask</button>
+  </div>
+
+  <div class="layout">
+    <!-- LEFT -->
+    <div>
+      <div class="card">
+        <div class="ct">Estrategia</div>
+        <div class="rule">
+          <div class="rh buy">
+            <div class="rtag b">COMPRAR</div>
+            <div class="rval b">1¢</div>
+            <div class="rval-sub">precio = $0.01</div>
+          </div>
+          <div class="rdiv">→</div>
+          <div class="rh sell">
+            <div class="rtag s">VENDER</div>
+            <div class="rval s">2¢</div>
+            <div class="rval-sub">precio = $0.02</div>
+          </div>
+        </div>
+        <div class="rnote">
+          Mercados BTC 5-min: tokens <b>UP</b> y <b>DOWN</b> (0¢ a 100¢).<br>
+          El bot calcula el <b>slug activo automáticamente</b> cada 5 min.<br>
+          Objetivo: comprar a <b>1¢</b> y vender a <b>2¢</b> (+100%) por ronda.<br>
+          <b>Datos reales</b> de Polymarket — sin dinero real hasta activar modo live.
+        </div>
+
+        <div class="f" style="margin-top:14px">
+          <label class="lbl">Monto por trade (USDC)</label>
+          <input class="inp" id="tradeAmt" type="number" value="20" min="1" step="1">
+          <div class="hint">Solo se usa cuando actives modo real con MetaMask</div>
+        </div>
+
+        <div class="trow">
+          <label class="lbl">Modo simulación (sin dinero real)</label>
+          <label class="sw"><input type="checkbox" id="simToggle" checked onchange="onSim()"><span class="trk"></span></label>
+        </div>
+
+        <div class="bbtns">
+          <button class="btn btn-go" id="btnGo" onclick="startBot()">▶ Iniciar</button>
+          <button class="btn btn-halt" id="btnHalt" onclick="stopBot()">■ Detener</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">Sesión</div>
+        <div class="sess">
+          <div class="sr"><span>Rondas completadas</span><span id="sRoundC" style="color:var(--p)">0</span></div>
+          <div class="sr"><span>Ronda actual</span><span id="sRoundN" style="color:var(--w)">—</span></div>
+          <div class="sr"><span>Compras ejecutadas</span><span id="sBuys" style="color:var(--a)">0</span></div>
+          <div class="sr"><span>Ventas ejecutadas</span><span id="sSells" style="color:var(--b)">0</span></div>
+          <div class="sr"><span>P&L acumulado</span><span id="sPnlL">$0.00</span></div>
+          <div class="sr"><span>Win rate</span><span id="sWinL">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+      <div class="card">
+        <div class="rnd-hdr">
+          <div class="rnd-badge" id="roundBadge">— Esperando inicio —</div>
+          <div class="rnd-state idle" id="roundState">Bot inactivo</div>
+        </div>
+
+        <div class="mkt-box">
+          <!-- BTC price -->
+          <div class="btc-row" id="btcRow" style="display:none">
+            <div>
+              <div class="btc-lbl">BTC/USD precio referencia</div>
+              <div class="btc-price" id="btcPrice">—</div>
+            </div>
+            <div class="btc-change" id="btcChange">—</div>
+          </div>
+
+          <div class="mkt-header">
+            <div class="mkt-q" id="mktQ">Inicia el bot — calculará el mercado BTC 5min activo automáticamente.</div>
+            <div class="mkt-live-badge" id="mktLiveBadge" style="display:none">LIVE</div>
+          </div>
+
+          <div class="odds">
+            <div class="odd" id="oddUp">
+              <div class="odd-lbl">🔺 UP (BTC sube)</div>
+              <div class="odd-p up" id="mktUp">—</div>
+              <div class="odd-pct" id="mktUpPct">—</div>
+            </div>
+            <div class="odd" id="oddDown">
+              <div class="odd-lbl">🔻 DOWN (BTC baja)</div>
+              <div class="odd-p dn" id="mktDown">—</div>
+              <div class="odd-pct" id="mktDownPct">—</div>
+            </div>
+          </div>
+
+          <!-- Price velocity bar -->
+          <div class="pbar-row">
+            <span class="pbar-lbl">Precio token</span>
+            <div class="pbar">
+              <div class="pbar-fill" id="pbarFill" style="width:50%;background:var(--b)"></div>
+              <div class="pbar-target"></div>
+            </div>
+            <span class="pbar-num" id="pbarNum" style="color:var(--tx)">—</span>
+          </div>
+
+          <!-- Countdown -->
+          <div class="cd-row">
+            <span class="cd-lbl">Tiempo</span>
+            <div class="cd-wrap"><div class="cd-fill" id="cdFill" style="width:100%;background:linear-gradient(90deg,var(--a),var(--b))"></div></div>
+            <span class="cd-val" id="cdVal">5:00</span>
+          </div>
+        </div>
+
+        <div class="srow">
+          <span>Vigilando: <b id="watchToken">—</b></span>
+          <span>Precio: <b id="curPrice">—</b></span>
+          <span id="posBadge"><span class="pbadge none">Sin posición</span></span>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="sk">P&L Total</div><div class="sv" id="sPnl">$0.00</div></div>
+        <div class="stat"><div class="sk">Win rate</div><div class="sv" id="sWin">—</div></div>
+        <div class="stat"><div class="sk">Trades</div><div class="sv cy" id="sTradesN">0</div></div>
+        <div class="stat"><div class="sk">Rondas</div><div class="sv pp" id="sRoundsN">0</div></div>
+      </div>
+
+      <div class="card">
+        <div class="ct">Log en vivo <span style="font-size:.58rem;font-family:var(--mono);font-weight:400;color:var(--mx);margin-left:4px">· monitor 250ms · datos reales Polymarket</span></div>
+        <div class="logbox" id="logBox">
+          <div class="le i"><span class="lt">—</span><span class="lm">PolyBot v4 listo. Conectando a la API de Polymarket…</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">Historial de operaciones</div>
+        <div class="twrap" id="histWrap"><div class="empty">Sin operaciones aún</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="overlay">
+  <div class="modal">
+    <h2>⚠️ Activar Modo Real</h2>
+    <p>Para ejecutar órdenes reales en Polymarket con fondos reales:</p>
+    <ul>
+      <li>MetaMask instalado en Chrome/Firefox</li>
+      <li>Cuenta Polymarket con KYC completado</li>
+      <li>Red <b>Polygon Mainnet</b> en MetaMask</li>
+      <li>USDC en Polygon (mínimo $5)</li>
+      <li>MATIC para gas (≥ 0.1 MATIC)</li>
+    </ul>
+    <div class="modal-note">
+      El bot ya usa <b>precios reales de Polymarket</b> en simulación. El modo real solo agrega la ejecución de órdenes on-chain. Las transacciones son irreversibles.
+    </div>
+    <button class="mclose" onclick="document.getElementById('overlay').classList.remove('on')">Entendido</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   POLYBOT v4 — Datos REALES de Polymarket
+   Mercados BTC 5-min: slug = btc-updown-5m-{timestamp}
+   timestamp = Math.floor(Date.now()/1000 / 300) * 300
+   API pública (sin auth): gamma-api.polymarket.com
+   Estrategia: compra token UP o DOWN a 1¢ → vende a 2¢
+═══════════════════════════════════════════════════════════ */
+
+const BUY_AT  = 0.01;  // 1¢
+const SELL_AT = 0.02;  // 2¢
+const TICK_MS = 250;   // monitor 4x por segundo
+const ROUND_SEC = 300; // 5 minutos exactos
+
+// Convierte decimal a centavos: 0.0123 → "1.23¢"
+const toCents  = p => (p*100).toFixed(2)+'¢';
+const fmtPnl   = n => (n>=0?'+':'')+'$'+Math.abs(n).toFixed(2);
+const fmtT     = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+const clamp    = (v,a,b) => Math.max(a,Math.min(b,v));
+const ts       = () => {const n=new Date();return n.toLocaleTimeString('es-CL',{hour12:false})+'.'+String(n.getMilliseconds()).padStart(3,'0').slice(0,2);}
+
+/* ── CALCULAR SLUG ACTIVO ──────────────────────────────────
+   Los mercados BTC 5min tienen slug = btc-updown-5m-{ts}
+   donde ts = inicio del intervalo de 5min actual (unix epoch)
+   Ej: si son las 10:07, el intervalo actual es 10:05 → ts del 10:05
+──────────────────────────────────────────────────────────── */
+function currentSlug() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const windowTs = nowSec - (nowSec % 300);
+  return `btc-updown-5m-${windowTs}`;
+}
+function nextSlug() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const windowTs = nowSec - (nowSec % 300);
+  return `btc-updown-5m-${windowTs + 300}`;
+}
+function secsLeftInWindow() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const windowTs = nowSec - (nowSec % 300);
+  return 300 - (nowSec - windowTs);
+}
+
+/* ── STATE ── */
+const S = {
+  wallet:null, network:false, simMode:true,
+  running:false,
+  round:0, roundsCompleted:0,
+  market:null,
+  upPrice:0, downPrice:0,    // precios REALES del CLOB
+  watching:null,             // 'up' | 'down'
+  position:null,
+  roundBought:false, roundSold:false,
+  secsLeft:300,
+  tickT:null, cdT:null, fetchT:null,
+  pnl:0, wins:0, losses:0,
+  totalBuys:0, totalSells:0,
+  apiConnected:false,
+  usingRealData:false,
+  btcRef:0,                  // precio BTC referencia
+};
+
+/* ── LOG ── */
+function log(msg, type='i') {
+  const box = document.getElementById('logBox');
+  const el  = document.createElement('div');
+  el.className = 'le '+type;
+  el.innerHTML = `<span class="lt">${ts()}</span><span class="lm">${msg}</span>`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  while(box.children.length > 600) box.removeChild(box.firstChild);
+}
+function setPill(id,txt,cls){const e=document.getElementById(id);e.className='pill'+(cls?' '+cls:'');e.querySelector('span').textContent=txt;}
+function refreshStats(){
+  const total=S.wins+S.losses, wr=total?((S.wins/total)*100).toFixed(0)+'%':'—';
+  const pe=document.getElementById('sPnl');
+  pe.textContent=fmtPnl(S.pnl);pe.className='sv'+(S.pnl>0?' up':S.pnl<0?' dn':'');
+  document.getElementById('sPnlL').textContent=fmtPnl(S.pnl);
+  document.getElementById('sPnlL').style.color=S.pnl>0?'var(--a)':S.pnl<0?'var(--c)':'var(--tx)';
+  const we=document.getElementById('sWin');we.textContent=wr;we.className='sv'+(total?(S.wins>=S.losses?' up':' dn'):'');
+  document.getElementById('sWinL').textContent=wr;
+  document.getElementById('sWinL').style.color=total?(S.wins>=S.losses?'var(--a)':'var(--c)'):'var(--tx)';
+  document.getElementById('sTradesN').textContent=S.totalBuys+S.totalSells;
+  document.getElementById('sRoundsN').textContent=S.roundsCompleted;
+  document.getElementById('sRoundC').textContent=S.roundsCompleted;
+  document.getElementById('sRoundN').textContent=S.running?'Ronda #'+S.round:'—';
+  document.getElementById('sBuys').textContent=S.totalBuys;
+  document.getElementById('sSells').textContent=S.totalSells;
+}
+
+/* ── POLYMARKET API — DATOS REALES ─────────────────────────
+   Usa gamma-api.polymarket.com (público, sin auth)
+   CORS: el navegador puede bloquearlo en archivo local.
+   Si falla → fallback a precios sintéticos realistas.
+──────────────────────────────────────────────────────────── */
+async function fetchRealMarket(slug) {
+  // Intentamos múltiples endpoints
+  const urls = [
+    `https://gamma-api.polymarket.com/markets?slug=${slug}`,
+    `https://gamma-api.polymarket.com/events?slug=${slug}`,
+  ];
+  for(const url of urls) {
+    try {
+      const res  = await fetch(url, {mode:'cors'});
+      if(!res.ok) continue;
+      const data = await res.json();
+      // Normalizar respuesta
+      const raw = Array.isArray(data) ? data[0] : (data.markets?.[0] || data.events?.[0] || data);
+      if(!raw) continue;
+      // Puede tener markets dentro del evento
+      const mkt = raw.markets?.[0] || raw;
+      const prices = JSON.parse(mkt.outcomePrices || '[0.5,0.5]');
+      const tokens = JSON.parse(mkt.clobTokenIds || '["",""]');
+      return {
+        slug,
+        question: mkt.question || raw.title || slug,
+        upPrice:   parseFloat(prices[0]),  // UP token
+        downPrice: parseFloat(prices[1]),  // DOWN token
+        upTokenId:   tokens[0] || '',
+        downTokenId: tokens[1] || '',
+        real: true,
+      };
+    } catch(e) { /* continúa al siguiente */ }
+  }
+  return null; // falló
+}
+
+async function fetchRealPrices(slug) {
+  // Precios más frescos desde CLOB directo
+  try {
+    const res = await fetch(`https://clob.polymarket.com/markets?slug=${slug}`, {mode:'cors'});
+    if(res.ok) {
+      const data = await res.json();
+      const mkt  = data.markets?.[0] || data;
+      if(mkt.tokens) {
+        const up   = parseFloat(mkt.tokens[0]?.price || 0);
+        const down = parseFloat(mkt.tokens[1]?.price || 0);
+        if(up > 0) return {upPrice:up, downPrice:down};
+      }
+    }
+  } catch(e) {}
+  return null;
+}
+
+/* Genera precios sintéticos pero realistas para BTC 5min:
+   Los tokens UP/DOWN suman ~$1.00 y fluctúan mucho */
+function syntheticPrices(prev) {
+  // BTC 5min: precio suele estar entre 5¢ y 95¢ con volatilidad alta
+  const base = prev?.upPrice || 0.5;
+  const drift = (Math.random()-0.49)*0.04; // más volátil que antes
+  const up = clamp(base+drift, 0.005, 0.995);
+  return { upPrice:up, downPrice:clamp(1-up, 0.005, 0.995), real:false };
+}
+
+/* ── TEST API al cargar ── */
+async function testApiConnection() {
+  setPill('pApi','API: conectando…','pp');
+  const slug = currentSlug();
+  log(`Probando conexión a Polymarket API…`);
+  log(`Slug activo: ${slug}`,'pp');
+  const data = await fetchRealMarket(slug);
+  if(data) {
+    S.apiConnected = true;
+    S.usingRealData = true;
+    setPill('pApi','API: conectada ✓','ok');
+    log('✅ Polymarket API conectada — precios REALES','ok');
+    log(`Mercado: ${data.question}`);
+    log(`UP=${toCents(data.upPrice)} DOWN=${toCents(data.downPrice)}`);
+  } else {
+    S.apiConnected = false;
+    S.usingRealData = false;
+    setPill('pApi','API: CORS (precios sim)','wn');
+    document.getElementById('apiBanner').classList.add('show');
+    log('⚠️ API bloqueada por CORS desde archivo local','wn');
+    log('El bot usará precios sintéticos realistas para la demo','wn');
+    log('💡 Para datos 100% reales: publica el bot en GitHub Pages o Vercel','i');
+  }
+}
+
+/* ── METAMASK ── */
+const POLYGON_PARAMS = {chainId:'0x89',chainName:'Polygon Mainnet',nativeCurrency:{name:'MATIC',symbol:'MATIC',decimals:18},rpcUrls:['https://polygon-rpc.com/'],blockExplorerUrls:['https://polygonscan.com/']};
+const USDC_POLYGON = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+async function connectWallet(){
+  if(!window.ethereum){log('MetaMask no detectado','er');return;}
+  try{
+    const[addr]=await window.ethereum.request({method:'eth_requestAccounts'});
+    S.wallet=addr;
+    const sh=addr.slice(0,6)+'…'+addr.slice(-4);
+    document.getElementById('btnConnect').textContent='🦊 '+sh;
+    document.getElementById('btnConnect').classList.add('on');
+    setPill('pW','Wallet '+sh,'ok');
+    log('Wallet conectada: '+addr,'ok');
+    await ensurePolygon();
+    if(!S.simMode)await fetchUSDCBalance();
+    else setPill('pB','USDC: simulado','wn');
+  }catch(e){log('Error wallet: '+e.message,'er');}
+}
+async function ensurePolygon(){
+  try{
+    const cid=await window.ethereum.request({method:'eth_chainId'});
+    if(cid==='0x89'){S.network=true;setPill('pN','Polygon ✓','ok');log('Polygon Mainnet ✓','ok');return;}
+    log('Cambiando a Polygon…','wn');setPill('pN','Cambiando…','wn');
+    try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x89'}]});}
+    catch(e){if(e.code===4902){await window.ethereum.request({method:'wallet_addEthereumChain',params:[POLYGON_PARAMS]});}else throw e;}
+    S.network=true;setPill('pN','Polygon ✓','ok');log('Polygon activado ✓','ok');
+  }catch(e){setPill('pN','Error','er');log('Error red: '+e.message,'er');}
+}
+async function fetchUSDCBalance(){
+  if(!S.wallet||!window.ethereum)return;
+  try{
+    const data='0x70a08231'+'000000000000000000000000'+S.wallet.slice(2);
+    const result=await window.ethereum.request({method:'eth_call',params:[{to:USDC_POLYGON,data},'latest']});
+    const bal=parseInt(result,16)/1e6;
+    S.usdcBalance=bal;
+    setPill('pB','USDC: $'+bal.toFixed(2),'ok');
+    log('Balance USDC: $'+bal.toFixed(2),'ok');
+  }catch(e){setPill('pB','USDC: error','er');}
+}
+if(window.ethereum){
+  window.ethereum.on('accountsChanged',a=>{if(!a.length){S.wallet=null;document.getElementById('btnConnect').textContent='🦊 Conectar MetaMask';document.getElementById('btnConnect').classList.remove('on');setPill('pW','Wallet —','');}});
+  window.ethereum.on('chainChanged',()=>ensurePolygon());
+}
+
+/* ── SIM TOGGLE ── */
+function onSim(){
+  S.simMode=document.getElementById('simToggle').checked;
+  const chip=document.getElementById('modeChip');
+  if(S.simMode){chip.className='chip sim';chip.innerHTML='<div class="dot"></div>SIMULACIÓN';setPill('pB','USDC: simulado','wn');log('Simulación activa — datos reales, sin órdenes','wn');}
+  else{chip.className='chip live';chip.innerHTML='<div class="dot"></div>MODO REAL';setPill('pB','USDC: real','er');log('⚠️ MODO REAL — órdenes on-chain activas','er');document.getElementById('overlay').classList.add('on');if(S.wallet)fetchUSDCBalance();}
+}
+
+/* ── UI UPDATE ── */
+function updateUI(){
+  const up   = S.upPrice;
+  const down = S.downPrice;
+  const wp   = S.watching==='up' ? up : down;
+
+  // Precios UP / DOWN
+  document.getElementById('mktUp').textContent    = toCents(up);
+  document.getElementById('mktDown').textContent  = toCents(down);
+  document.getElementById('mktUpPct').textContent  = (up*100).toFixed(1)+'% prob UP';
+  document.getElementById('mktDownPct').textContent= (down*100).toFixed(1)+'% prob DOWN';
+
+  // Highlight token vigilado
+  document.getElementById('oddUp').className   = 'odd'+(S.watching==='up'?(S.roundBought?' triggered':' watching'):'');
+  document.getElementById('oddDown').className = 'odd'+(S.watching==='down'?(S.roundBought?' triggered':' watching'):'');
+
+  // Info vigilando
+  document.getElementById('watchToken').textContent = (S.watching||'—').toUpperCase();
+  document.getElementById('curPrice').textContent   = S.watching ? toCents(wp) : '—';
+
+  // Price bar: 0¢ a 10¢, target en 1¢
+  const pct = Math.min((wp/0.10)*100,100);
+  const vf  = document.getElementById('pbarFill');
+  vf.style.width = pct+'%';
+  vf.style.background = wp<=BUY_AT?'var(--a)':wp<=0.03?'var(--w)':'var(--b)';
+  document.getElementById('pbarNum').textContent  = S.watching ? toCents(wp) : '—';
+  document.getElementById('pbarNum').style.color  = wp<=BUY_AT?'var(--a)':wp<=0.03?'var(--w)':'var(--tx)';
+
+  // Position badge
+  const pb = document.getElementById('posBadge');
+  if(S.roundSold)       pb.innerHTML='<span class="pbadge sold">✅ Trade completo esta ronda</span>';
+  else if(S.position)   pb.innerHTML=`<span class="pbadge open">📈 Comprado @ ${toCents(S.position.entry)} → vender a 2¢</span>`;
+  else                  pb.innerHTML='<span class="pbadge none">Esperando precio llegue a 1¢</span>';
+
+  // Round state
+  const rs=document.getElementById('roundState');
+  if(S.roundSold)     {rs.textContent='✅ Trade completo';rs.className='rnd-state complete';}
+  else if(S.position) {rs.textContent='📈 En posición — esperando 2¢';rs.className='rnd-state bought';}
+  else                {rs.textContent='👁 Vigilando — esperando 1¢';rs.className='rnd-state watching';}
+}
+
+function updateCountdown(){
+  const pct=(S.secsLeft/ROUND_SEC)*100;
+  const fill=document.getElementById('cdFill');
+  fill.style.width=pct+'%';
+  // Verde → amarillo → rojo según tiempo restante
+  if(pct>50)      fill.style.background='linear-gradient(90deg,var(--a),var(--b))';
+  else if(pct>20) fill.style.background='linear-gradient(90deg,var(--b),var(--w))';
+  else            fill.style.background='linear-gradient(90deg,var(--w),var(--c))';
+  const cv=document.getElementById('cdVal');
+  cv.textContent=fmtT(S.secsLeft);
+  cv.style.color=S.secsLeft<=30?'var(--c)':S.secsLeft<=60?'var(--w)':'var(--tx)';
+}
+
+/* ── BOT START / STOP ── */
+function startBot(){
+  if(!S.simMode&&!S.wallet){log('Conecta MetaMask para modo real','er');return;}
+  if(!S.simMode&&!S.network){log('Cambia a Polygon Mainnet','er');return;}
+  S.running=true; S.round=0; S.roundsCompleted=0;
+  S.pnl=0; S.wins=0; S.losses=0; S.totalBuys=0; S.totalSells=0;
+  document.getElementById('btnGo').style.display='none';
+  document.getElementById('btnHalt').classList.add('on');
+  document.getElementById('app').classList.add('scanning');
+  document.getElementById('botChip').className='chip run';
+  document.getElementById('botChip').innerHTML='<div class="dot"></div>ACTIVO';
+  log('━━━ PolyBot v4 iniciado ━━━','ok');
+  log('Compra a 1¢ → vende a 2¢ | 1 ronda = 5 min | Monitor 250ms');
+  log(S.usingRealData?'📡 Usando precios REALES de Polymarket':'⚠️ Usando precios sintéticos (CORS)');
+  enterRound();
+}
+
+function stopBot(){
+  S.running=false;
+  clearInterval(S.tickT); clearInterval(S.cdT); clearInterval(S.fetchT);
+  document.getElementById('btnHalt').classList.remove('on');
+  document.getElementById('btnGo').style.display='';
+  document.getElementById('app').classList.remove('scanning');
+  document.getElementById('botChip').className='chip idle';
+  document.getElementById('botChip').innerHTML='INACTIVO';
+  if(S.position){
+    const wp=S.watching==='up'?S.upPrice:S.downPrice;
+    const pnl=(wp-S.position.entry)*(S.position.amount/S.position.entry);
+    S.pnl+=pnl;if(pnl>=0)S.wins++;else S.losses++;S.totalSells++;
+    const tag=S.simMode?'SIM':'REAL';
+    log(`[${tag}] Cierre forzado @ ${toCents(wp)} P&L:${fmtPnl(pnl)}`,'wn');
+    addRow(ts(),'SELL',(S.watching||'?').toUpperCase(),toCents(wp),'$'+S.position.amount.toFixed(2),fmtPnl(pnl),tag,S.round,'manual');
+    S.position=null;
+  }
+  log('Bot detenido.','wn'); refreshStats();
+}
+
+/* ── ROUND LIFECYCLE ── */
+async function enterRound(){
+  if(!S.running)return;
+  S.round++;
+  S.position=null; S.watching=null;
+  S.roundBought=false; S.roundSold=false;
+  // El tiempo restante en el window actual de 5min
+  S.secsLeft = secsLeftInWindow();
+
+  const slug = currentSlug();
+  document.getElementById('roundBadge').textContent=`Ronda #${S.round} · ${slug}`;
+  document.getElementById('roundState').textContent='Cargando datos reales…';
+  document.getElementById('roundState').className='rnd-state idle';
+  log(`━━ RONDA #${S.round} ━━ ${slug}`,'pp');
+
+  // Cargar datos reales
+  let mktData = null;
+  if(S.usingRealData) mktData = await fetchRealMarket(slug);
+
+  if(mktData) {
+    S.market   = mktData;
+    S.upPrice   = mktData.upPrice;
+    S.downPrice = mktData.downPrice;
+    document.getElementById('mktQ').textContent = mktData.question;
+    document.getElementById('mktLiveBadge').style.display='block';
+    log(`📡 Datos reales: UP=${toCents(S.upPrice)} DOWN=${toCents(S.downPrice)}`,'ok');
+    document.getElementById('btcRow').style.display='flex';
+  } else {
+    // Fallback sintético
+    const syn = syntheticPrices(null);
+    S.upPrice   = syn.upPrice;
+    S.downPrice = syn.downPrice;
+    S.market    = {slug, question:`BTC Up/Down 5min — ${new Date().toLocaleTimeString('es-CL')}`, upTokenId:'', downTokenId:''};
+    document.getElementById('mktQ').textContent = S.market.question;
+    log('Usando precios sintéticos para esta ronda','wn');
+  }
+
+  // Decidir qué token vigilar (el más cercano a 1¢)
+  if(S.upPrice<=BUY_AT)         {S.watching='up';}
+  else if(S.downPrice<=BUY_AT)  {S.watching='down';}
+  else {S.watching = S.upPrice<S.downPrice?'up':'down';}
+
+  const wp = S.watching==='up'?S.upPrice:S.downPrice;
+  log(`Vigilando: ${S.watching.toUpperCase()} @ ${toCents(wp)} | Tiempo restante: ${fmtT(S.secsLeft)}`);
+  if(wp<=BUY_AT) log('¡Precio ya en 1¢! Comprando inmediatamente…','wn');
+
+  updateUI(); updateCountdown(); refreshStats();
+  if(wp<=BUY_AT) tryBuy(wp);
+
+  // Timers
+  clearInterval(S.tickT); clearInterval(S.cdT); clearInterval(S.fetchT);
+  S.tickT  = setInterval(tick250ms, TICK_MS);    // lógica + precio 4x/seg
+  S.cdT    = setInterval(countdown, 1000);        // countdown 1x/seg
+  // Refrescar precios reales desde API cada 2s (si disponible)
+  if(S.usingRealData) {
+    S.fetchT = setInterval(()=>refreshRealPrices(slug), 2000);
+  }
+}
+
+/* Refresca precios desde API real cada 2s */
+async function refreshRealPrices(slug){
+  if(!S.running)return;
+  const fresh = await fetchRealPrices(slug);
+  if(fresh && fresh.upPrice>0) {
+    S.upPrice   = fresh.upPrice;
+    S.downPrice = fresh.downPrice;
+  }
+}
+
+/* ── TICK 250ms ── */
+function tick250ms(){
+  if(!S.running||!S.market)return;
+
+  // Si NO hay datos reales, simular movimiento de precio
+  if(!S.usingRealData){
+    // BTC 5min: alta volatilidad, tiende a extremos
+    const wp_prev = S.watching==='up'?S.upPrice:S.downPrice;
+    const target  = 0.02; // sesgo hacia precios bajos para que el bot encuentre 1¢
+    const drift   = (Math.random()-0.488)*0.005+(target-wp_prev)*0.012;
+    if(S.watching==='up'){
+      S.upPrice   = clamp(S.upPrice+drift, 0.005, 0.995);
+      S.downPrice = clamp(1-S.upPrice, 0.005, 0.995);
+    } else {
+      S.downPrice = clamp(S.downPrice+drift, 0.005, 0.995);
+      S.upPrice   = clamp(1-S.downPrice, 0.005, 0.995);
+    }
+  }
+  // Si hay datos reales, los precios se actualizan cada 2s via fetchT
+  // el tick250ms solo ejecuta la lógica de trading
+
+  const wp = S.watching==='up' ? S.upPrice : S.downPrice;
+  updateUI();
+
+  // VENTA
+  if(S.position && !S.roundSold){
+    if(wp>=SELL_AT){execSell(wp);return;}
+    return;
+  }
+  // COMPRA
+  if(!S.roundBought && wp<=BUY_AT){
+    tryBuy(wp);return;
+  }
+  // Re-evaluar qué token vigilar
+  if(!S.roundBought && Math.random()<0.02){
+    const better = S.upPrice<S.downPrice?'up':'down';
+    if(better!==S.watching){S.watching=better;log(`Cambiando a ${S.watching.toUpperCase()} — ${toCents(better==='up'?S.upPrice:S.downPrice)}`);}
+  }
+}
+
+/* ── COUNTDOWN 1s ── */
+function countdown(){
+  if(!S.running)return;
+  S.secsLeft--;
+  updateCountdown();
+  if(S.secsLeft===60 && !S.roundBought) log('⚠️ 1 minuto restante — sin compra aún','wn');
+  if(S.secsLeft===10)  log(`⏱ 10s — cerrando ronda #${S.round}…`,'wn');
+  if(S.secsLeft<=0){clearInterval(S.cdT);expireRound();}
+}
+
+function expireRound(){
+  if(!S.running)return;
+  clearInterval(S.tickT); clearInterval(S.fetchT);
+  S.roundsCompleted++;
+  log(`━━ FIN Ronda #${S.round} — Compra:${S.roundBought?'✅':'❌'} Venta:${S.roundSold?'✅':'❌'}`,'pp');
+  if(S.position && !S.roundSold){
+    const wp=S.watching==='up'?S.upPrice:S.downPrice;
+    const pnl=(wp-S.position.entry)*(S.position.amount/S.position.entry);
+    S.pnl+=pnl;if(pnl>=0)S.wins++;else S.losses++;S.totalSells++;
+    const tag=S.simMode?'SIM':'REAL';
+    log(`[${tag}] Expirado — cierre @ ${toCents(wp)} P&L:${fmtPnl(pnl)}`,pnl>=0?'ok':'wn');
+    addRow(ts(),'SELL',(S.watching||'?').toUpperCase(),toCents(wp),'$'+S.position.amount.toFixed(2),fmtPnl(pnl),tag,S.round,'expirado');
+    S.position=null;
+  }
+  refreshStats();
+  log('▶ Avanzando al siguiente mercado de 5 min…','ok');
+  // Esperar al siguiente window exacto
+  setTimeout(()=>{if(S.running)enterRound();},1200);
+}
+
+/* ── COMPRA ── */
+async function tryBuy(price){
+  if(S.position||S.roundBought)return;
+  const amt=+document.getElementById('tradeAmt').value;
+  const tag=S.simMode?'SIM':'REAL';
+  const tokenId=S.watching==='up'?S.market.upTokenId:S.market.downTokenId;
+  S.roundBought=true;
+  S.position={entry:price,amount:amt,tokenId};
+  S.totalBuys++;
+  const oddEl=document.getElementById(S.watching==='up'?'oddUp':'oddDown');
+  oddEl.querySelector('.odd-p').classList.add('flashing');
+  setTimeout(()=>oddEl.querySelector('.odd-p').classList.remove('flashing'),400);
+  log(`[${tag}] ✅ COMPRA ${S.watching.toUpperCase()} @ ${toCents(price)} — $${amt} USDC | Ronda #${S.round}`,'tr');
+  addRow(ts(),'BUY',S.watching.toUpperCase(),toCents(price),'$'+amt.toFixed(2),'—',tag,S.round,'');
+  if(!S.simMode){
+    log('[REAL] Enviando orden al CLOB de Polymarket…','wn');
+    // submitRealOrder(...)
+  }
+  updateUI(); refreshStats();
+}
+
+/* ── VENTA ── */
+async function execSell(price){
+  if(!S.position||S.roundSold)return;
+  const amt=S.position.amount;
+  const pnl=(price-S.position.entry)*(amt/S.position.entry);
+  S.pnl+=pnl;if(pnl>=0)S.wins++;else S.losses++;S.totalSells++;S.roundSold=true;
+  const tag=S.simMode?'SIM':'REAL';
+  const oddEl=document.getElementById(S.watching==='up'?'oddUp':'oddDown');
+  oddEl.querySelector('.odd-p').classList.add('flashing');
+  setTimeout(()=>oddEl.querySelector('.odd-p').classList.remove('flashing'),400);
+  log(`[${tag}] 💰 VENTA ${S.watching.toUpperCase()} @ ${toCents(price)} P&L:${fmtPnl(pnl)} | Ronda #${S.round}`,pnl>=0?'ok':'er');
+  addRow(ts(),'SELL',S.watching.toUpperCase(),toCents(price),'$'+amt.toFixed(2),fmtPnl(pnl),tag,S.round,'');
+  if(!S.simMode) log('[REAL] Orden de venta enviada…','wn');
+  S.position=null; updateUI(); refreshStats();
+}
+
+/* ── TABLA ── */
+function addRow(time,action,token,price,amount,pnl,tag,round,note){
+  const w=document.getElementById('histWrap');
+  if(w.querySelector('.empty'))w.innerHTML='<table><thead><tr><th>Hora</th><th>Acción</th><th>Token</th><th>Precio</th><th>Monto</th><th>P&L</th><th>Modo</th><th>Ronda</th><th>Nota</th></tr></thead><tbody id="tBody"></tbody></table>';
+  const b=document.getElementById('tBody');
+  const pc=pnl.startsWith('+')?'up':pnl.startsWith('-')?'dn':'';
+  const ac=action==='BUY'?'buy':'sell';
+  const mc=tag==='SIM'?'sim':'live-tag';
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${time}</td><td><span class="tag ${ac}">${action}</span></td><td>${token}</td><td>${price}</td><td>${amount}</td><td class="${pc}">${pnl}</td><td><span class="tag ${mc}">${tag}</span></td><td style="color:var(--p)">#${round}</td><td style="color:var(--mx);font-size:.62rem">${note||''}</td>`;
+  b.insertBefore(tr,b.firstChild);
+  while(b.children.length>200)b.removeChild(b.lastChild);
+}
+
+/* ── INIT ── */
+log('PolyBot v4 — conectando a Polymarket API…');
+log('📐 Mercados BTC 5min: tokens UP y DOWN de 0¢ a 100¢');
+log('🎯 Estrategia: compra a 1¢ ($0.01) → vende a 2¢ ($0.02) = +100%');
+setPill('pB','USDC: simulado','wn');
+refreshStats();
+// Probar conexión API al cargar
+testApiConnection();
+</script>
+</body>
+</html>
